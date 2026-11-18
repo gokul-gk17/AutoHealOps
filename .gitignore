@@ -1,0 +1,7 @@
+inventory/hosts.ini
+.env
+*.pem
+*.key
+*.log
+__pycache__/
+.DS_Store

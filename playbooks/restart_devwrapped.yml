@@ -1,0 +1,33 @@
+---
+- name: Recover Dev Wrapped application
+  hosts: application
+  become: true
+
+  tasks:
+    - name: Restart Dev Wrapped service
+      ansible.builtin.systemd:
+        name: devwrapped
+        state: restarted
+        enabled: true
+
+    - name: Wait for Node.js API
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 3000
+        state: started
+        timeout: 60
+
+    - name: Verify application health endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3000/api/health
+        method: GET
+        return_content: true
+        status_code: 200
+      register: health
+
+    - name: Confirm application is healthy
+      ansible.builtin.assert:
+        that:
+          - health.json.ok | default(false) | bool
+        success_msg: "Dev Wrapped recovered successfully."
+        fail_msg: "Dev Wrapped health check failed."

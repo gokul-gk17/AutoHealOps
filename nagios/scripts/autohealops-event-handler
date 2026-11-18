@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+STATE="${1:-}"
+STATE_TYPE="${2:-}"
+SERVICE="${3:-}"
+
+LOG_FILE="/var/log/autohealops/recovery.log"
+
+echo "$(date) | Event: $SERVICE | State: $STATE | Type: $STATE_TYPE" >> "$LOG_FILE"
+
+if [[ "$SERVICE" != "Dev Wrapped API" || "$STATE" != "CRITICAL" || "$STATE_TYPE" != "HARD" ]]; then
+    exit 0
+fi
+
+exec 9>/var/lib/nagios/autohealops/recovery.lock
+flock -n 9 || exit 0
+
+echo "$(date) | Starting automated recovery" >> "$LOG_FILE"
+
+if /usr/bin/timeout 120 /usr/bin/ansible-playbook \
+    -i /opt/autohealops/inventory/hosts.ini \
+    /opt/autohealops/playbooks/restart_devwrapped.yml \
+    >> "$LOG_FILE" 2>&1; then
+    echo "$(date) | Recovery completed successfully" >> "$LOG_FILE"
+else
+    echo "$(date) | Recovery FAILED with exit code $?" >> "$LOG_FILE"
+fi
+
+exit 0
